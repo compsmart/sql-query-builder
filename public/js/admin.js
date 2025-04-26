@@ -306,11 +306,10 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     window.editTable = function (tableId) {
         const table = configData.tables.find(t => t.id == tableId);
-        if (!table) return;
-
-        // Fill the form
+        if (!table) return;        // Fill the form
         document.getElementById('tableId').value = table.id;
         document.getElementById('tableName').value = table.name;
+        document.getElementById('schemaName').value = table.schema_name || 'dbo';
         document.getElementById('tableDisplayName').value = table.display_name;
         document.getElementById('isMainTable').checked = table.is_main_table == 1;
         document.getElementById('isEnabled').checked = table.is_enabled == 1;
@@ -326,13 +325,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * Save table
-     */
-    async function saveTable() {
+     */    async function saveTable() {
         const tableId = document.getElementById('tableId').value;
         const isEdit = tableId !== '';
 
         const tableData = {
             name: document.getElementById('tableName').value,
+            schema_name: document.getElementById('schemaName').value || 'dbo',
             display_name: document.getElementById('tableDisplayName').value,
             is_main_table: document.getElementById('isMainTable').checked ? 1 : 0,
             is_enabled: document.getElementById('isEnabled').checked ? 1 : 0,

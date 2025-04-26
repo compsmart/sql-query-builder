@@ -79,8 +79,7 @@ class ConfigController
 
     /**
      * Save a new table configuration
-     */
-    public function saveTable()
+     */    public function saveTable()
     {
         $data = json_decode(file_get_contents('php://input'), true);
 
@@ -90,12 +89,12 @@ class ConfigController
             return;
         }
 
-        $sql = "INSERT INTO config_tables (name, display_name, is_main_table, is_enabled, description)
-                VALUES (:name, :display_name, :is_main_table, :is_enabled, :description)";
-
+        $sql = "INSERT INTO config_tables (name, schema_name, display_name, is_main_table, is_enabled, description)
+                VALUES (:name, :schema_name, :display_name, :is_main_table, :is_enabled, :description)";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
             ':name' => $data['name'],
+            ':schema_name' => isset($data['schema_name']) ? $data['schema_name'] : 'dbo',
             ':display_name' => $data['display_name'],
             ':is_main_table' => isset($data['is_main_table']) ? $data['is_main_table'] : 0,
             ':is_enabled' => isset($data['is_enabled']) ? $data['is_enabled'] : 1,
@@ -108,8 +107,7 @@ class ConfigController
 
     /**
      * Update a table configuration
-     */
-    public function updateTable()
+     */    public function updateTable()
     {
         $data = json_decode(file_get_contents('php://input'), true);
 
@@ -121,17 +119,18 @@ class ConfigController
 
         $sql = "UPDATE config_tables SET 
                 name = :name,
+                schema_name = :schema_name,
                 display_name = :display_name,
                 is_main_table = :is_main_table,
                 is_enabled = :is_enabled,
                 description = :description,
                 updated_at = GETDATE()
                 WHERE id = :id";
-
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
             ':id' => $data['id'],
             ':name' => $data['name'],
+            ':schema_name' => isset($data['schema_name']) ? $data['schema_name'] : 'dbo',
             ':display_name' => $data['display_name'],
             ':is_main_table' => isset($data['is_main_table']) ? $data['is_main_table'] : 0,
             ':is_enabled' => isset($data['is_enabled']) ? $data['is_enabled'] : 1,
@@ -421,22 +420,23 @@ class ConfigController
             $stmt->execute([':name' => $table['name']]);
             $existingTable = $stmt->fetch();
 
-            if (!$existingTable) {
-                // Add table to config
+            if (!$existingTable) {                // Add table to config
                 $stmt = $this->db->prepare(
-                    "INSERT INTO config_tables (name, display_name, is_main_table, is_enabled, description)
-                     VALUES (:name, :display_name, :is_main_table, :is_enabled, :description)"
+                    "INSERT INTO config_tables (name, schema_name, display_name, is_main_table, is_enabled, description)
+                     VALUES (:name, :schema_name, :display_name, :is_main_table, :is_enabled, :description)"
                 );
 
                 $displayName = ucwords(str_replace('_', ' ', $table['name']));
                 $isMainTable = ($table['name'] === 'customers') ? 1 : 0;
+                $schemaName = isset($table['schema_name']) ? $table['schema_name'] : 'dbo';
 
                 $stmt->execute([
                     ':name' => $table['name'],
+                    ':schema_name' => $schemaName,
                     ':display_name' => $displayName,
                     ':is_main_table' => $isMainTable,
                     ':is_enabled' => 1,
-                    ':description' => "Auto-discovered table {$table['name']}"
+                    ':description' => "Auto-discovered table {$schemaName}.{$table['name']}"
                 ]);
 
                 $tableId = $this->db->lastInsertId();
@@ -563,8 +563,13 @@ class ConfigController
      */
     public function getDbTables()
     {
-        // Use remote database connection to get customer data tables
-        $stmt = $this->remoteDb->query("SELECT name FROM sysobjects WHERE xtype = 'U'");
+        // Use remote database connection to get customer data tables with schema information
+        $stmt = $this->remoteDb->query("SELECT 
+            o.name AS name,
+            SCHEMA_NAME(o.schema_id) AS schema_name
+            FROM sys.objects o
+            WHERE o.type = 'U'
+            ORDER BY schema_name, name");
         return $stmt->fetchAll();
     }
 

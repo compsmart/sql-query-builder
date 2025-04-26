@@ -6,6 +6,7 @@ BEGIN
 CREATE TABLE config_tables (
     id INT PRIMARY KEY IDENTITY(1,1),
     name VARCHAR(100) NOT NULL,
+    schema_name VARCHAR(100) DEFAULT 'dbo',
     display_name VARCHAR(100) NOT NULL,
     is_main_table BIT DEFAULT 0,
     is_enabled BIT DEFAULT 1,

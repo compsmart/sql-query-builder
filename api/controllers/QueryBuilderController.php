@@ -139,24 +139,24 @@ class QueryBuilderController
                 $column = $this->findColumnById($columnId, $columns);
                 if (!$column) {
                     throw new Exception("Column with ID {$columnId} not found");
-                }
-
-                // Find the table
+                }                // Find the table
                 $table = $this->findTableById($column['table_id'], $tables);
                 if (!$table) {
                     throw new Exception("Table for column {$column['name']} not found");
                 }
 
-                $selectColumns[] = "{$table['name']}.{$column['name']} AS {$table['name']}_{$column['name']}";
+                // Include schema name when building fully qualified column name
+                $schemaName = isset($table['schema_name']) && !empty($table['schema_name']) ? $table['schema_name'] : 'dbo';
+                $tableRef = "{$schemaName}.{$table['name']}";
+                $selectColumns[] = "{$tableRef}.{$column['name']} AS {$table['name']}_{$column['name']}";
             }
             $sql .= implode(", ", $selectColumns);
         } else {
             // Default to selecting all columns from main table
             $sql .= "{$mainTable['name']}.*";
-        }
-
-        // Add FROM clause with main table
-        $sql .= " FROM {$mainTable['name']}";
+        }        // Add FROM clause with main table including schema name
+        $mainTableSchema = isset($mainTable['schema_name']) && !empty($mainTable['schema_name']) ? $mainTable['schema_name'] : 'dbo';
+        $sql .= " FROM {$mainTableSchema}.{$mainTable['name']}";
 
         // Add JOINs for related tables used in the query
         $usedTables = $this->findTablesUsedInQuery($query, $columns, $tables);
@@ -180,19 +180,25 @@ class QueryBuilderController
 
             if (!$relationship) {
                 throw new Exception("No relationship found between main table and table ID {$tableId}");
-            }
-
-            // Find the table
+            }            // Find the table
             $joinTable = $this->findTableById($tableId, $tables);
             if (!$joinTable) {
                 throw new Exception("Table with ID {$tableId} not found");
             }
 
-            // Add join clause
+            // Get schema names for both tables
+            $joinTableSchema = isset($joinTable['schema_name']) && !empty($joinTable['schema_name']) ? $joinTable['schema_name'] : 'dbo';
+            $mainTableSchema = isset($mainTable['schema_name']) && !empty($mainTable['schema_name']) ? $mainTable['schema_name'] : 'dbo';
+
+            // Use fully qualified table names with schema
+            $mainTableRef = "{$mainTableSchema}.{$mainTable['name']}";
+            $joinTableRef = "{$joinTableSchema}.{$joinTable['name']}";
+
+            // Add join clause with schema-qualified table names
             if ($relationship['source_table_id'] == $mainTable['id']) {
-                $joinClauses[] = "LEFT JOIN {$joinTable['name']} ON {$mainTable['name']}.{$relationship['join_column']} = {$joinTable['name']}.{$relationship['foreign_column']}";
+                $joinClauses[] = "LEFT JOIN {$joinTableRef} ON {$mainTableRef}.{$relationship['join_column']} = {$joinTableRef}.{$relationship['foreign_column']}";
             } else {
-                $joinClauses[] = "LEFT JOIN {$joinTable['name']} ON {$joinTable['name']}.{$relationship['join_column']} = {$mainTable['name']}.{$relationship['foreign_column']}";
+                $joinClauses[] = "LEFT JOIN {$joinTableRef} ON {$joinTableRef}.{$relationship['join_column']} = {$mainTableRef}.{$relationship['foreign_column']}";
             }
         }
 
@@ -217,13 +223,15 @@ class QueryBuilderController
                 if (!$column) {
                     throw new Exception("Column with ID {$columnId} not found for GROUP BY");
                 }
-
                 $table = $this->findTableById($column['table_id'], $tables);
                 if (!$table) {
                     throw new Exception("Table for column {$column['name']} not found");
                 }
 
-                $groupByClauses[] = "{$table['name']}.{$column['name']}";
+                // Use schema-qualified table name
+                $schemaName = isset($table['schema_name']) && !empty($table['schema_name']) ? $table['schema_name'] : 'dbo';
+                $tableRef = "{$schemaName}.{$table['name']}";
+                $groupByClauses[] = "{$tableRef}.{$column['name']}";
             }
 
             if (!empty($groupByClauses)) {
@@ -247,14 +255,17 @@ class QueryBuilderController
                 if (!$column) {
                     throw new Exception("Column with ID {$orderItem['column']} not found for ORDER BY");
                 }
-
                 $table = $this->findTableById($column['table_id'], $tables);
                 if (!$table) {
                     throw new Exception("Table for column {$column['name']} not found");
                 }
 
+                // Use schema-qualified table name
+                $schemaName = isset($table['schema_name']) && !empty($table['schema_name']) ? $table['schema_name'] : 'dbo';
+                $tableRef = "{$schemaName}.{$table['name']}";
+
                 $direction = isset($orderItem['direction']) && strtoupper($orderItem['direction']) === 'DESC' ? 'DESC' : 'ASC';
-                $orderClauses[] = "{$table['name']}.{$column['name']} {$direction}";
+                $orderClauses[] = "{$tableRef}.{$column['name']} {$direction}";
             }
 
             if (!empty($orderClauses)) {
@@ -316,13 +327,16 @@ class QueryBuilderController
             if (!$column) {
                 throw new Exception("Column with ID {$condition['column']} not found");
             }
-
             $table = $this->findTableById($column['table_id'], $tables);
             if (!$table) {
                 throw new Exception("Table for column {$column['name']} not found");
             }
 
-            $columnName = "{$table['name']}.{$column['name']}";
+            // Use schema-qualified table name
+            $schemaName = isset($table['schema_name']) && !empty($table['schema_name']) ? $table['schema_name'] : 'dbo';
+            $tableRef = "{$schemaName}.{$table['name']}";
+
+            $columnName = "{$tableRef}.{$column['name']}";
 
             // Handle different operators
             $operator = strtoupper($condition['operator']);
