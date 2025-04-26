@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL Query Builder</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">SQL Query Builder</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="index.html">Query Builder</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="admin.html">Configuration</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <div class="col-md-12 mb-3">
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Query Builder</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="queryBuilder"></div>
+                        <div class="mt-3">
+                            <button id="btnAddRule" class="btn btn-sm btn-primary">
+                                <i class="bi bi-plus-circle"></i> Add Rule
+                            </button>
+                            <button id="btnAddGroup" class="btn btn-sm btn-secondary">
+                                <i class="bi bi-folder-plus"></i> Add Group
+                            </button>
+                            <button id="btnClear" class="btn btn-sm btn-warning">
+                                <i class="bi bi-trash"></i> Clear
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Columns to Display</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="columnsSelect"></div>
+                        <div class="mt-2">
+                            <button id="btnSelectAll" class="btn btn-sm btn-secondary">Select All</button>
+                            <button id="btnDeselectAll" class="btn btn-sm btn-outline-secondary">Deselect All</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mt-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">SQL Preview</h5>
+                        <button id="btnCopySQL" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-clipboard"></i> Copy
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <pre id="sqlPreview" class="p-2 border rounded bg-light">-- SQL will appear here</pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Results</h5>
+                        <div>
+                            <button id="btnExecute" class="btn btn-primary">
+                                <i class="bi bi-play-fill"></i> Execute Query
+                            </button>
+                            <button id="btnExport" class="btn btn-success">
+                                <i class="bi bi-download"></i> Export CSV
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="resultsContainer">
+                            <div class="text-center p-5 text-muted">
+                                <i class="bi bi-database-fill" style="font-size: 2rem;"></i>
+                                <p class="mt-2">Execute a query to see results</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Query Builder Template -->
+    <script id="query-builder-template" type="text/x-template">
+        <div class="query-builder-group">
+            <div class="group-header">
+                <select class="form-select form-select-sm operator-select">
+                    <option value="AND">AND</option>
+                    <option value="OR">OR</option>
+                </select>
+                <button class="btn btn-sm btn-danger btn-remove-group">
+                    <i class="bi bi-x-circle"></i>
+                </button>
+            </div>
+            <div class="group-body">
+                <div class="conditions-container"></div>
+            </div>
+        </div>
+    </script>
+
+    <script id="query-condition-template" type="text/x-template">
+        <div class="query-condition">
+            <div class="d-flex align-items-center condition-row">
+                <select class="form-select form-select-sm field-select"></select>
+                <select class="form-select form-select-sm operator-select ms-2"></select>
+                <div class="value-container ms-2"></div>
+                <button class="btn btn-sm btn-danger ms-2 btn-remove-condition">
+                    <i class="bi bi-x-circle"></i>
+                </button>
+            </div>
+        </div>
+    </script>
+
+    <!-- Modal for loading -->
+    <div class="modal fade" id="loadingModal" data-bs-backdrop="static" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center p-4">
+                    <div class="spinner-border text-primary mb-3" role="status"></div>
+                    <h5>Processing your query...</h5>
+                    <p class="text-muted">This may take a moment</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/query-builder.js"></script>
+    <script src="js/main.js"></script>
+</body>
+
+</html>
