@@ -97,7 +97,7 @@ class ConfigController
             ':schema_name' => isset($data['schema_name']) ? $data['schema_name'] : 'dbo',
             ':display_name' => $data['display_name'],
             ':is_main_table' => isset($data['is_main_table']) ? $data['is_main_table'] : 0,
-            ':is_enabled' => isset($data['is_enabled']) ? $data['is_enabled'] : 1,
+            ':is_enabled' => isset($data['is_enabled']) ? $data['is_enabled'] : 0,
             ':description' => isset($data['description']) ? $data['description'] : null
         ]);
 
@@ -133,7 +133,7 @@ class ConfigController
             ':schema_name' => isset($data['schema_name']) ? $data['schema_name'] : 'dbo',
             ':display_name' => $data['display_name'],
             ':is_main_table' => isset($data['is_main_table']) ? $data['is_main_table'] : 0,
-            ':is_enabled' => isset($data['is_enabled']) ? $data['is_enabled'] : 1,
+            ':is_enabled' => isset($data['is_enabled']) ? $data['is_enabled'] : 0,
             ':description' => isset($data['description']) ? $data['description'] : null
         ]);
 
@@ -447,7 +447,7 @@ class ConfigController
                     ':schema_name' => $table['schema_name'],
                     ':display_name' => $displayName,
                     ':is_main_table' => $isMainTable,
-                    ':is_enabled' => 1,
+                    ':is_enabled' => 0,
                     ':description' => "Auto-discovered {$table['object_type']} {$table['schema_name']}.{$table['name']}",
                     ':object_type' => $table['object_type']
                 ]);

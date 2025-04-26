@@ -19,7 +19,6 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             // Load configuration data from the API
             await loadConfigData();
-
             // Initialize the query builder
             initQueryBuilder();
 
@@ -53,25 +52,52 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error loading configuration:', error);
             throw error;
         }
-    }
-
-    /**
+    }    /**
      * Initialize the query builder
      */
     function initQueryBuilder() {
+        // Filter to only include enabled tables and columns
+        const enabledTables = configData.tables.filter(table => table.is_enabled == 1);
+        const enabledTableIds = enabledTables.map(table => table.id);        // Filter to only include columns from enabled tables that are filterable
+        const enabledColumns = configData.columns.filter(column => {
+            // Check if the column belongs to an enabled table
+            const tableEnabled = enabledTableIds.includes(column.table_id);
+
+            // For query builder, we only want columns that are filterable
+            const columnFilterable = column.is_filterable == 1 ||
+                column.is_filterable === true ||
+                column.is_filterable === '1' ||
+                column.is_filterable === 'true';
+
+            return tableEnabled && columnFilterable;
+        });
+
+        // Filter relationships to only include those between enabled tables
+        const enabledRelationships = configData.relationships.filter(rel =>
+            enabledTableIds.includes(rel.source_table_id) &&
+            enabledTableIds.includes(rel.target_table_id)
+        );
+
+        // Debug logging
+        console.log('Enabled Tables Count:', enabledTables.length);
+        console.log('Enabled Columns Count:', enabledColumns.length);
+        console.log('First few enabled columns:', enabledColumns.slice(0, 3));
+
         queryBuilder = new QueryBuilder('#queryBuilder', {
-            fields: configData.columns,
-            tables: configData.tables,
-            relationships: configData.relationships,
+            fields: enabledColumns,
+            tables: enabledTables,
+            relationships: enabledRelationships,
             options: configData.options,
             onChange: handleQueryChange
         });
-    }
-
-    /**
+    }/**
      * Set up event listeners
      */
     function setupEventListeners() {
+        // Add filter functionality for tables and columns
+        document.getElementById('tableSearchFilter').addEventListener('input', applyFilters);
+        document.getElementById('columnSearchFilter').addEventListener('input', applyFilters);
+
         // Add rule button
         document.getElementById('btnAddRule').addEventListener('click', () => {
             queryBuilder.addCondition();
@@ -129,20 +155,29 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function populateColumnsSelect() {
         const columnsSelect = document.getElementById('columnsSelect');
-        columnsSelect.innerHTML = '';
-
-        // Group columns by table
+        columnsSelect.innerHTML = '';        // Group columns by table - filter for enabled tables and columns only
         const columnsByTable = {};
 
-        configData.columns.forEach(column => {
-            const table = configData.tables.find(t => t.id == column.table_id);
-            const tableName = table ? table.display_name : 'Unknown';
+        // First, filter for enabled tables only
+        const enabledTables = configData.tables.filter(table => table.is_enabled == 1); configData.columns.forEach(column => {
+            const table = enabledTables.find(t => t.id == column.table_id);
+
+            // Skip if column's table is not enabled
+            if (!table) {
+                return;
+            }
+
+            const tableName = table.display_name;
 
             if (!columnsByTable[tableName]) {
                 columnsByTable[tableName] = [];
             }
 
-            if (column.is_visible) {
+            // Only include visible columns
+            if (column.is_visible == 1 ||
+                column.is_visible === true ||
+                column.is_visible === '1' ||
+                column.is_visible === 'true') {
                 columnsByTable[tableName].push(column);
             }
         });
@@ -448,5 +483,151 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+    }    /**
+     * Filter columns based on search input - works for both table names and column names
+     * Hides tables completely if neither their name nor any columns match
+     */
+    function filterColumns() {
+        const filterValue = document.getElementById('columnSearchFilter').value.toLowerCase();
+
+        // If no filter, show everything and exit early
+        if (!filterValue) {
+            document.querySelectorAll('#columnsSelect > div').forEach(section => {
+                section.style.display = '';
+            });
+            document.querySelectorAll('#columnsSelect .form-check').forEach(item => {
+                item.style.display = '';
+            });
+            return;
+        }
+
+        // Get all table sections and column items
+        const tableSections = document.querySelectorAll('#columnsSelect > div');
+
+        // Process each table section
+        tableSections.forEach(tableSection => {
+            const tableHeader = tableSection.querySelector('h6');
+            const tableName = tableHeader ? tableHeader.textContent.toLowerCase() : '';
+            const columnItems = tableSection.querySelectorAll('.form-check');
+
+            // Check if table name matches
+            const tableNameMatches = tableName && tableName.includes(filterValue);
+
+            // If table name matches, show all columns in this table
+            if (tableNameMatches) {
+                tableSection.style.display = '';
+                columnItems.forEach(item => {
+                    item.style.display = '';
+                });
+                return; // Skip to next table
+            }
+
+            // Otherwise, check if any columns match
+            let hasMatchingColumn = false;
+
+            // Check each column in this table
+            columnItems.forEach(item => {
+                const label = item.querySelector('label').textContent.toLowerCase();
+
+                if (label.includes(filterValue)) {
+                    item.style.display = '';
+                    hasMatchingColumn = true;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            // Show/hide the entire table section based on whether any columns matched
+            tableSection.style.display = hasMatchingColumn ? '' : 'none';
+        });
+        // Second pass - handle table headers and show all columns for matching tables
+        tableHeaders.forEach(header => {
+            const tableName = header.textContent.toLowerCase();
+            const tableColumnsDiv = header.nextElementSibling;
+
+            // If table name matches OR if table has matching columns
+            if (tableName.includes(filterValue)) {
+                header.style.display = '';
+
+                // If table name matches, show all its columns
+                if (tableColumnsDiv) {
+                    tableColumnsDiv.style.display = '';
+                    const tableColumns = tableColumnsDiv.querySelectorAll('.form-check');
+                    tableColumns.forEach(col => {
+                        col.style.display = '';
+                    });
+                }
+            } else if (tablesWithMatches[header.textContent]) {
+                // Table has matching columns - show header
+                header.style.display = '';
+                if (tableColumnsDiv) {
+                    tableColumnsDiv.style.display = '';
+                }
+            } else {
+                // No matches in table name or columns - hide table header
+                header.style.display = 'none';
+                if (tableColumnsDiv) {
+                    tableColumnsDiv.style.display = 'none';
+                }
+            }
+        });
+
+        // If filter is empty, make sure everything is visible
+        if (!filterValue) {
+            tableHeaders.forEach(header => {
+                header.style.display = '';
+                const tableColumnsDiv = header.nextElementSibling;
+                if (tableColumnsDiv) {
+                    tableColumnsDiv.style.display = '';
+                    const tableColumns = tableColumnsDiv.querySelectorAll('.form-check');
+                    tableColumns.forEach(col => {
+                        col.style.display = '';
+                    });
+                }
+            });
+        }
+    }
+    /**
+     * Apply both table and column filters separately but working together
+     */
+    function applyFilters() {
+        const tableFilterValue = document.getElementById('tableSearchFilter').value.toLowerCase();
+        const columnFilterValue = document.getElementById('columnSearchFilter').value.toLowerCase();
+
+        // Get all table sections
+        const tableSections = document.querySelectorAll('#columnsSelect > div');
+
+        // Process each table section
+        tableSections.forEach(tableSection => {
+            const tableHeader = tableSection.querySelector('h6');
+            const tableName = tableHeader ? tableHeader.textContent.toLowerCase() : '';
+            const columnItems = tableSection.querySelectorAll('.form-check');
+
+            // Check if table name matches the table filter
+            const tableNameMatches = !tableFilterValue || tableName.includes(tableFilterValue);
+
+            // If table doesn't match the table filter, hide entire section
+            if (!tableNameMatches) {
+                tableSection.style.display = 'none';
+                return;
+            }
+
+            // Check columns against the column filter
+            let hasMatchingColumn = false;
+
+            columnItems.forEach(item => {
+                const label = item.querySelector('label').textContent.toLowerCase();
+
+                if (!columnFilterValue || label.includes(columnFilterValue)) {
+                    item.style.display = '';
+                    hasMatchingColumn = true;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            // Show table section if table name matches filter OR it has matching columns
+            tableSection.style.display = hasMatchingColumn ? '' : 'none';
+        });
     }
 });
