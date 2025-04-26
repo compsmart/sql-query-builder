@@ -83,6 +83,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // Add table button
         document.getElementById('btnAddTable').addEventListener('click', showAddTableModal);
 
+        // Table filter
+        document.getElementById('tableFilter').addEventListener('input', filterTables);
+
+        // Column filter
+        document.getElementById('columnFilter').addEventListener('input', filterColumns);
+
         // Save table button
         document.getElementById('btnSaveTable').addEventListener('click', saveTable);
 
@@ -162,15 +168,16 @@ document.addEventListener('DOMContentLoaded', () => {
             row.innerHTML = `
                 <td>${table.name}</td>
                 <td>${table.display_name}</td>
+                <td>${table.object_type}</td> <!-- Display the object type (table or view) -->
                 <td>
                     <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" ${table.is_main_table ? 'checked' : ''} 
-                               onchange="updateTableMainStatus(${table.id}, this.checked)" ${table.is_main_table ? 'disabled' : ''}>
+                        <input class="form-check-input" type="checkbox" ${table.is_main_table == 1 ? 'checked' : ''} 
+                               onchange="updateTableMainStatus(${table.id}, this.checked)" ${table.is_main_table == 1 ? 'disabled' : ''}>
                     </div>
                 </td>
                 <td>
                     <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" ${table.is_enabled ? 'checked' : ''} 
+                        <input class="form-check-input" type="checkbox" ${table.is_enabled == 1 ? 'checked' : ''} 
                                onchange="updateTableEnabledStatus(${table.id}, this.checked)">
                     </div>
                 </td>
@@ -976,5 +983,55 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error resetting configuration:', error);
             alert('Error resetting configuration. Please check the console for details.');
         }
+    }
+
+    /**
+     * Filter tables based on search input
+     */
+    function filterTables() {
+        const filterValue = document.getElementById('tableFilter').value.toLowerCase();
+        const tableRows = document.querySelectorAll('#tables-table tbody tr');
+
+        tableRows.forEach(row => {
+            const name = row.cells[0].innerText.toLowerCase();
+            const displayName = row.cells[1].innerText.toLowerCase();
+            const type = row.cells[2]?.innerText.toLowerCase();
+
+            // Show row if any of these fields contain the filter text
+            if (name.includes(filterValue) ||
+                displayName.includes(filterValue) ||
+                (type && type.includes(filterValue))) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    /**
+     * Filter columns based on search input
+     */
+    function filterColumns() {
+        const filterValue = document.getElementById('columnFilter').value.toLowerCase();
+        const columnRows = document.querySelectorAll('#columns-table tbody tr');
+
+        columnRows.forEach(row => {
+            const name = row.cells[0].innerText.toLowerCase();
+            const displayName = row.cells[1].innerText.toLowerCase();
+            const dataType = row.cells[2].innerText.toLowerCase();
+            const inputType = row.cells[3].innerText.toLowerCase();
+            const group = row.cells[4].innerText.toLowerCase();
+
+            // Show row if any of these fields contain the filter text
+            if (name.includes(filterValue) ||
+                displayName.includes(filterValue) ||
+                dataType.includes(filterValue) ||
+                inputType.includes(filterValue) ||
+                group.includes(filterValue)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
     }
 });

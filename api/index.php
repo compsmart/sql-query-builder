@@ -22,7 +22,7 @@ $uri = explode('/', $uri);
 // Find the endpoint in the URI path
 $endpoint = null;
 foreach ($uri as $segment) {
-    if (in_array($segment, ['config', 'query', 'execute', 'tables', 'columns', 'relationships'])) {
+    if (in_array($segment, ['config', 'discover', 'query', 'execute', 'tables', 'columns', 'relationships'])) {
         $endpoint = $segment;
         break;
     }
@@ -40,6 +40,11 @@ try {
         case 'config':
             $controller = new ConfigController();
             $controller->getConfig();
+            break;
+
+        case 'discover':
+            $controller = new ConfigController();
+            $controller->discoverSchema();
             break;
 
         case 'tables':

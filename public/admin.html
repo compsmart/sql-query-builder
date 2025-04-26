@@ -65,9 +65,14 @@
                     <div class="card">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h5 class="mb-0">Available Tables</h5>
-                            <button id="btnAddTable" class="btn btn-sm btn-primary">
-                                <i class="bi bi-plus-circle"></i> Add Table
-                            </button>
+                            <div>
+                                <input type="text" id="tableFilter"
+                                    class="form-control form-control-sm d-inline-block me-2"
+                                    placeholder="Filter tables..." style="width: 200px;">
+                                <button id="btnAddTable" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-plus-circle"></i> Add Table
+                                </button>
+                            </div>
                         </div>
                         <div class="card-body">
                             <table class="table table-striped" id="tables-table">
@@ -75,6 +80,8 @@
                                     <tr>
                                         <th>Name</th>
                                         <th>Display Name</th>
+                                        <th>Type</th> <!-- Add a column header for object type -->
+
                                         <th>Main Table</th>
                                         <th>Enabled</th>
                                         <th>Actions</th>
@@ -102,6 +109,9 @@
                                     style="width: 200px; display: inline-block;">
                                     <option value="">-- Select Table --</option>
                                 </select>
+                                <input type="text" id="columnFilter"
+                                    class="form-control form-control-sm d-inline-block me-2"
+                                    placeholder="Filter columns..." style="width: 200px;">
                                 <button id="btnAddColumn" class="btn btn-sm btn-primary" disabled>
                                     <i class="bi bi-plus-circle"></i> Add Column
                                 </button>

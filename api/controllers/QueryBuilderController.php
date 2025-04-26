@@ -103,9 +103,9 @@ class QueryBuilderController
             ]);
         }
     }
-
     /**
      * Generate SQL from a query structure
+     * Supports both tables and views from the remote database
      */
     private function generateSQL($query)
     {
@@ -113,9 +113,7 @@ class QueryBuilderController
         $configController = new ConfigController();
         $tables = $configController->getTablesData();
         $columns = $configController->getColumnsData();
-        $relationships = $configController->getRelationshipsData();
-
-        // Find main table
+        $relationships = $configController->getRelationshipsData();        // Find main table or view
         $mainTable = null;
         foreach ($tables as $table) {
             if ($table['is_main_table'] == 1) {
@@ -125,7 +123,7 @@ class QueryBuilderController
         }
 
         if (!$mainTable) {
-            throw new Exception('No main table defined in configuration');
+            throw new Exception('No main table or view defined in configuration');
         }
 
         // Start building the query
@@ -152,9 +150,10 @@ class QueryBuilderController
             }
             $sql .= implode(", ", $selectColumns);
         } else {
-            // Default to selecting all columns from main table
+            // Default to selecting all columns from main table or view
             $sql .= "{$mainTable['name']}.*";
-        }        // Add FROM clause with main table including schema name
+        }
+        // Add FROM clause with main table/view including schema name
         $mainTableSchema = isset($mainTable['schema_name']) && !empty($mainTable['schema_name']) ? $mainTable['schema_name'] : 'dbo';
         $sql .= " FROM {$mainTableSchema}.{$mainTable['name']}";
 
@@ -177,13 +176,12 @@ class QueryBuilderController
                     break;
                 }
             }
-
             if (!$relationship) {
-                throw new Exception("No relationship found between main table and table ID {$tableId}");
-            }            // Find the table
+                throw new Exception("No relationship found between main entity and table/view ID {$tableId}");
+            }            // Find the table or view
             $joinTable = $this->findTableById($tableId, $tables);
             if (!$joinTable) {
-                throw new Exception("Table with ID {$tableId} not found");
+                throw new Exception("Table or view with ID {$tableId} not found");
             }
 
             // Get schema names for both tables

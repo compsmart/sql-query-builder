@@ -403,46 +403,59 @@ class ConfigController
 
     /**
      * Discover database schema and auto-populate config tables
-     */
-    public function discoverSchema()
+     */    public function discoverSchema()
     {
+        // Track statistics for the discovery process
+        $stats = [
+            'tables_discovered' => 0,
+            'tables_added' => 0,
+            'columns_added' => 0,
+            'new_columns_added' => 0,
+            'relationships_discovered' => 0
+        ];
+
         // Get all tables in the database
         $tables = $this->getDbTables();
+        $stats['tables_discovered'] = count($tables);
 
         foreach ($tables as $table) {
-            // Skip tables that start with config_
-            if (strpos($table['name'], 'config_') === 0) {
+            // Skip tables that start with config_ or are system views
+            if (strpos($table['name'], 'config_') === 0 || strpos($table['schema_name'], 'sys') === 0) {
                 continue;
             }
 
-            // Check if table already exists in config
-            $stmt = $this->db->prepare("SELECT id FROM config_tables WHERE name = :name");
-            $stmt->execute([':name' => $table['name']]);
+            // Check if table or view already exists in config
+            $stmt = $this->db->prepare("SELECT id FROM config_tables WHERE name = :name AND schema_name = :schema_name");
+            $stmt->execute([
+                ':name' => $table['name'],
+                ':schema_name' => $table['schema_name']
+            ]);
             $existingTable = $stmt->fetch();
 
-            if (!$existingTable) {                // Add table to config
+            if (!$existingTable) {
+                // Add table or view to config
                 $stmt = $this->db->prepare(
-                    "INSERT INTO config_tables (name, schema_name, display_name, is_main_table, is_enabled, description)
-                     VALUES (:name, :schema_name, :display_name, :is_main_table, :is_enabled, :description)"
+                    "INSERT INTO config_tables (name, schema_name, display_name, is_main_table, is_enabled, description, object_type)
+                     VALUES (:name, :schema_name, :display_name, :is_main_table, :is_enabled, :description, :object_type)"
                 );
 
                 $displayName = ucwords(str_replace('_', ' ', $table['name']));
-                $isMainTable = ($table['name'] === 'customers') ? 1 : 0;
-                $schemaName = isset($table['schema_name']) ? $table['schema_name'] : 'dbo';
+                $isMainTable = ($table['object_type'] === 'table' && stripos($table['name'], 'customer') !== false) ? 1 : 0;
 
                 $stmt->execute([
                     ':name' => $table['name'],
-                    ':schema_name' => $schemaName,
+                    ':schema_name' => $table['schema_name'],
                     ':display_name' => $displayName,
                     ':is_main_table' => $isMainTable,
                     ':is_enabled' => 1,
-                    ':description' => "Auto-discovered table {$schemaName}.{$table['name']}"
+                    ':description' => "Auto-discovered {$table['object_type']} {$table['schema_name']}.{$table['name']}",
+                    ':object_type' => $table['object_type']
                 ]);
 
                 $tableId = $this->db->lastInsertId();
 
-                // Get columns for this table
-                $columns = $this->getDbTableColumns($table['name']);
+                // Get columns for this table or view
+                $columns = $this->getDbTableColumns($table['name'], $table['schema_name']);
 
                 foreach ($columns as $index => $column) {
                     // Add column to config
@@ -472,6 +485,57 @@ class ConfigController
                         ':sort_order' => $index,
                         ':group_name' => 'Auto-discovered'
                     ]);
+                }
+            } else {
+                // Table exists - check for new columns
+                $tableId = $existingTable['id'];
+
+                // Get current columns from the config database
+                $configColumns = [];
+                $stmt = $this->db->prepare("SELECT name FROM config_columns WHERE table_id = :table_id");
+                $stmt->execute([':table_id' => $tableId]);
+                while ($row = $stmt->fetch()) {
+                    $configColumns[] = strtolower($row['name']);
+                }
+
+                // Get columns from the remote database
+                $remoteColumns = $this->getDbTableColumns($table['name'], $table['schema_name']);
+                $lastSortOrder = $this->getLastSortOrderForTable($tableId);
+
+                // Add any new columns that don't exist in the config
+                foreach ($remoteColumns as $column) {
+                    echo "Checking column: {$column['name']}\n";
+                    if (!in_array(strtolower($column['name']), $configColumns)) {
+                        // New column found - add it to the config
+                        $inputType = $this->mapDataTypeToInputType($column['data_type']);
+                        $displayName = ucwords(str_replace('_', ' ', $column['name']));
+                        $lastSortOrder++;
+
+                        $stmt = $this->db->prepare(
+                            "INSERT INTO config_columns (
+                            table_id, name, display_name, data_type, input_type,
+                            is_filterable, is_sortable, is_visible, sort_order, group_name
+                            ) VALUES (
+                            :table_id, :name, :display_name, :data_type, :input_type,
+                            :is_filterable, :is_sortable, :is_visible, :sort_order, :group_name
+                            )"
+                        );
+
+                        $stmt->execute([
+                            ':table_id' => $tableId,
+                            ':name' => $column['name'],
+                            ':display_name' => $displayName,
+                            ':data_type' => $column['data_type'],
+                            ':input_type' => $inputType,
+                            ':is_filterable' => 1,
+                            ':is_sortable' => 1,
+                            ':is_visible' => 1,
+                            ':sort_order' => $lastSortOrder,
+                            ':group_name' => 'New column'
+                        ]);
+
+                        $stats['new_columns_added']++;
+                    }
                 }
             }
         }
@@ -559,17 +623,20 @@ class ConfigController
         }
     }
     /**
-     * Get database tables from the remote database
+     * Get database tables and views from the remote database
      */
     public function getDbTables()
     {
-        // Use remote database connection to get customer data tables with schema information
-        $stmt = $this->remoteDb->query("SELECT 
+        // Use remote database connection to get tables and views with schema information
+        $sql = "SELECT 
             o.name AS name,
-            SCHEMA_NAME(o.schema_id) AS schema_name
-            FROM sys.objects o
-            WHERE o.type = 'U'
-            ORDER BY schema_name, name");
+            SCHEMA_NAME(o.schema_id) AS schema_name,
+            CASE WHEN o.type = 'U' THEN 'table' ELSE 'view' END AS object_type
+        FROM sys.objects o
+        WHERE o.type IN ('U', 'V') -- 'U' for tables, 'V' for views
+        ORDER BY schema_name, name";
+
+        $stmt = $this->remoteDb->query($sql);
         return $stmt->fetchAll();
     }
 
@@ -699,5 +766,19 @@ class ConfigController
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();
+    }
+
+    /**
+     * Get the highest sort order value for a specific table
+     * 
+     * @param int $tableId The ID of the table
+     * @return int The highest sort order value
+     */
+    private function getLastSortOrderForTable($tableId)
+    {
+        $stmt = $this->db->prepare("SELECT MAX(sort_order) as max_sort FROM config_columns WHERE table_id = :table_id");
+        $stmt->execute([':table_id' => $tableId]);
+        $result = $stmt->fetch();
+        return $result && isset($result['max_sort']) ? (int)$result['max_sort'] : 0;
     }
 }
