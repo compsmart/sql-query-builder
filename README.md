@@ -119,6 +119,8 @@ chmod -R 775 api/logs  # If logging is enabled
 
 The application needs to be configured to recognize which tables and columns should be available in the query builder.
 
+![screenshot](https://github.com/compsmart/sql-query-builder/sql2.jpg)
+
 1. Access the admin panel at `http://yourdomain.com/admin.html`
 2. Add tables from your database that should be queryable
 3. Configure columns with proper display names
@@ -150,6 +152,8 @@ Relationships define how tables can be joined:
   "relationship_type": "one-to-many"
 }
 ```
+
+![screenshot](https://github.com/compsmart/sql-query-builder/sql2.jpg)
 
 ## Usage Guide
 
