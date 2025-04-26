@@ -2,7 +2,7 @@
 
 A powerful, user-friendly web interface for building and executing SQL queries without writing SQL code. This application allows users to visually construct complex database queries using an intuitive interface, select display columns, and export results - all without requiring SQL knowledge.
 
-![screenshot](https://github.com/compsmart/sql-query-builder/sql1.jpg)
+![screenshot](https://github.com/compsmart/sql-query-builder/raw/master/sql1.jpg)
 
 
 ## Table of Contents
@@ -38,7 +38,7 @@ A powerful, user-friendly web interface for building and executing SQL queries w
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/compsmart/queryengine.git
+git clone https://github.com/compsmart/sql-query-builder.git
 cd queryengine
 ```
 
@@ -119,7 +119,7 @@ chmod -R 775 api/logs  # If logging is enabled
 
 The application needs to be configured to recognize which tables and columns should be available in the query builder.
 
-![screenshot](https://github.com/compsmart/sql-query-builder/sql2.jpg)
+![screenshot](https://github.com/compsmart/sql-query-builder/raw/master/sql2.jpg)
 
 1. Access the admin panel at `http://yourdomain.com/admin.html`
 2. Add tables from your database that should be queryable
@@ -153,7 +153,7 @@ Relationships define how tables can be joined:
 }
 ```
 
-![screenshot](https://github.com/compsmart/sql-query-builder/sql2.jpg)
+![screenshot](https://github.com/compsmart/sql-query-builder/raw/master/sql2.jpg)
 
 ## Usage Guide
 
